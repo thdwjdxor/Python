@@ -1,8 +1,8 @@
-# NN with mixed variables
-
+# Import Google Colab
 from google.colab import files
 uploaded = files.upload()
 
+# Read Google Colab File
 import pandas as pd
 import io
 
@@ -10,6 +10,7 @@ df = pd.read_csv(io.StringIO(uploaded['SRC_Trunc.csv'].decode('utf-8')))
 df1 = df.copy()
 df.head()
 
+# String to Numerical
 import numpy as np
 
 # This is our initial data; one entry per "sample"
@@ -30,19 +31,21 @@ for sample in samples:
             # Note that we don't attribute index 0 to anything.
             
 df1 = df1.replace({'ID_F': token_index})
-#df1 = df1.sample(frac=1) #If order does not matter
-
+#df1 = df1.sample(frac=1) # Shuffle: If order does not matter
 df1.head()
 
+# One hot encodeing: Dummy
 df1 = pd.get_dummies(df1, columns=['ROLE'])
 
+# Sort dataframe
 df1 = df1.sort_values('TREND').reset_index().drop('index',axis=1)
 df1
 
+# time based split
+# Find row where to split test dataset
 val_obs = df1[df1.TREND == 22].index.min()
 val_obs
 
-# time based split
 x_train1 = np.array(df1[['ID_F']].iloc[0:val_obs])
 x_train2 = np.array(df1[['MONTH']].iloc[0:val_obs])
 x_train3 = np.array(df1.iloc[0:val_obs, 3:])
@@ -55,7 +58,8 @@ y_test = np.array(df1[['SRC']].iloc[val_obs:])
 
 x_train1.shape, x_test1.shape, x_train2.shape, x_test2.shape, y_train.shape, y_test.shape, x_train3
 
-# # If Randome Sort is okay
+----------------------------------------------------------------------------------------
+# non-timebased split
 # spl = int(df1.shape[0]*0.8)
 
 # x_train1 = np.array(df1[['ID_F']].iloc[0:spl])
@@ -67,7 +71,9 @@ x_train1.shape, x_test1.shape, x_train2.shape, x_test2.shape, y_train.shape, y_t
 # y_test = np.array(df1[['SRC']].iloc[spl:])
 
 # x_train1.shape, x_test1.shape, x_train2.shape, x_test2.shape, y_train.shape, y_test.shape
+----------------------------------------------------------------------------------------
 
+# Clear Network
 from keras import backend as K 
 K.clear_session()
 
