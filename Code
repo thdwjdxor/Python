@@ -1,0 +1,142 @@
+# NN with mixed variables
+
+from google.colab import files
+uploaded = files.upload()
+
+import pandas as pd
+import io
+
+df = pd.read_csv(io.StringIO(uploaded['SRC_Trunc.csv'].decode('utf-8')))
+df1 = df.copy()
+df.head()
+
+import numpy as np
+
+# This is our initial data; one entry per "sample"
+# (in this toy example, a "sample" is just a sentence, but
+# it could be an entire document).
+samples = set(df.ID_F)
+
+# First, build an index of all tokens in the data.
+token_index = {}
+for sample in samples:
+    # We simply tokenize the samples via the `split` method.
+    # in real life, we would also strip punctuation and special characters
+    # from the samples.
+    for word in sample.split():
+        if word not in token_index:
+            # Assign a unique index to each unique word
+            token_index[word] = len(token_index) + 1
+            # Note that we don't attribute index 0 to anything.
+            
+df1 = df1.replace({'ID_F': token_index})
+#df1 = df1.sample(frac=1) #If order does not matter
+
+df1.head()
+
+df1 = pd.get_dummies(df1, columns=['ROLE'])
+
+df1 = df1.sort_values('TREND').reset_index().drop('index',axis=1)
+df1
+
+val_obs = df1[df1.TREND == 22].index.min()
+val_obs
+
+# time based split
+x_train1 = np.array(df1[['ID_F']].iloc[0:val_obs])
+x_train2 = np.array(df1[['MONTH']].iloc[0:val_obs])
+x_train3 = np.array(df1.iloc[0:val_obs, 3:])
+y_train = np.array(df1[['SRC']].iloc[0:val_obs])
+
+x_test1 = np.array(df1[['ID_F']].iloc[val_obs:])
+x_test2 = np.array(df1[['MONTH']].iloc[val_obs:])
+x_test3 = np.array(df1.iloc[val_obs:, 3:])
+y_test = np.array(df1[['SRC']].iloc[val_obs:])
+
+x_train1.shape, x_test1.shape, x_train2.shape, x_test2.shape, y_train.shape, y_test.shape, x_train3
+
+# # If Randome Sort is okay
+# spl = int(df1.shape[0]*0.8)
+
+# x_train1 = np.array(df1[['ID_F']].iloc[0:spl])
+# x_train2 = np.array(df1.iloc[0:spl, 2:])
+# y_train = np.array(df1[['SRC']].iloc[0:spl])
+
+# x_test1 = np.array(df1[['ID_F']].iloc[spl:])
+# x_test2 = np.array(df1.iloc[spl:, 2:])
+# y_test = np.array(df1[['SRC']].iloc[spl:])
+
+# x_train1.shape, x_test1.shape, x_train2.shape, x_test2.shape, y_train.shape, y_test.shape
+
+from keras import backend as K 
+K.clear_session()
+
+embed_input1 = len(set(df.ID_F)) + 1
+embed_input2 = len(set(df.MONTH)) + 1
+
+from keras import Input, layers
+from keras.models import Sequential, Model
+from keras import layers
+
+# define two sets of inputs
+inputA = Input(shape=(x_train1.shape[1],))
+inputB = Input(shape=(x_train2.shape[1],))
+inputC = Input(shape=(x_train3.shape[1],))
+ 
+# the first branch operates on the first input
+x1 = layers.Embedding(embed_input1, 7)(inputA)
+x1 = layers.LSTM(128, dropout=0.5, recurrent_dropout=0.5, return_sequences=True)(x1)
+x1 = layers.LSTM(128, dropout=0.5, recurrent_dropout=0.5)(x1)
+x1 = Model(inputs=inputA, outputs=x1)
+ 
+# the first branch operates on the first input
+x2 = layers.Embedding(embed_input2, 3)(inputB)
+x2 = layers.LSTM(128, dropout=0.5, recurrent_dropout=0.5, return_sequences=True)(x2)
+x2 = layers.LSTM(128, dropout=0.5, recurrent_dropout=0.5)(x2)
+x2 = Model(inputs=inputB, outputs=x2)
+
+# the second branch opreates on the second input
+y = layers.Dense(128, activation="relu")(inputC)
+y = layers.Dropout(0.5)(y)
+y = layers.Dense(128, activation="relu")(y)
+y = layers.Dropout(0.5)(y)
+y = Model(inputs=inputC, outputs=y)
+ 
+# combine the output of the two branches
+combined = layers.concatenate([x1.output, x2.output, y.output], axis = -1)
+ 
+# apply a FC layer and then a regression prediction on the
+# combined outputs
+z = layers.Dense(128, activation="relu")(combined)
+z = layers.Dropout(0.5)(z)
+z = layers.Dense(128, activation="relu")(z)
+z = layers.Dropout(0.5)(z)
+z = layers.Dense(1)(z)
+ 
+# our model will accept the inputs of the two branches and
+# then output a single value
+model = Model(inputs=[x1.input, x2.input, y.input], outputs=z)
+
+model.compile(optimizer='rmsprop',
+              loss='mse',
+              metrics=['mae'])
+              
+history = model.fit([x_train1, x_train2, x_train3], y_train,
+                    epochs = 20,
+                    batch_size = 62,
+                    validation_data = ([x_test1, x_test2, x_test3], y_test))
+
+
+import matplotlib.pyplot as plt
+
+loss = history.history['mean_absolute_error']
+val_loss = history.history['val_mean_absolute_error']
+
+epochs = range(1, len(loss) + 1)
+
+plt.plot(epochs, loss, 'bo', label='Training loss')
+plt.plot(epochs, val_loss, 'b', label='Validation loss')
+plt.title('Training and validation loss')
+plt.legend()
+
+plt.show()
