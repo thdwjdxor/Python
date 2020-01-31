@@ -10,13 +10,16 @@ df = pd.read_csv(io.StringIO(uploaded['SRC_Trunc.csv'].decode('utf-8')))
 df1 = df.copy()
 df.head()
 
+df['ADJ_EMPID'] = df['ADJ_EMPID'].apply(str)
+df1 = df.copy()
+
 # String to Numerical
 import numpy as np
 
 # This is our initial data; one entry per "sample"
 # (in this toy example, a "sample" is just a sentence, but
 # it could be an entire document).
-samples = set(df.ID_F)
+samples = set(df.ADJ_EMPID)
 
 # First, build an index of all tokens in the data.
 token_index = {}
@@ -30,33 +33,30 @@ for sample in samples:
             token_index[word] = len(token_index) + 1
             # Note that we don't attribute index 0 to anything.
             
-df1 = df1.replace({'ID_F': token_index})
+df1 = df1.replace({'ADJ_EMPID': token_index})
 #df1 = df1.sample(frac=1) # Shuffle: If order does not matter
 df1.head()
 
 # One hot encodeing: Dummy
-df1 = pd.get_dummies(df1, columns=['ROLE'])
-
-# Sort dataframe
+df1 = pd.get_dummies(df1, columns=['ROLE', 'ESSBASE_MONTH'])
 df1 = df1.sort_values('TREND').reset_index().drop('index',axis=1)
-df1
+df1.head()
 
 # time based split
 # Find row where to split test dataset
 val_obs = df1[df1.TREND == 22].index.min()
 val_obs
 
-x_train1 = np.array(df1[['ID_F']].iloc[0:val_obs])
-x_train2 = np.array(df1[['MONTH']].iloc[0:val_obs])
-x_train3 = np.array(df1.iloc[0:val_obs, 3:])
+x_train1 = np.array(df1[['ADJ_EMPID']].iloc[0:val_obs])
+x_train2 = np.array(df1.iloc[0:val_obs, 2:])
 y_train = np.array(df1[['SRC']].iloc[0:val_obs])
 
-x_test1 = np.array(df1[['ID_F']].iloc[val_obs:])
-x_test2 = np.array(df1[['MONTH']].iloc[val_obs:])
-x_test3 = np.array(df1.iloc[val_obs:, 3:])
+x_test1 = np.array(df1[['ADJ_EMPID']].iloc[val_obs:])
+x_test2 = np.array(df1.iloc[val_obs:, 2:])
 y_test = np.array(df1[['SRC']].iloc[val_obs:])
 
-x_train1.shape, x_test1.shape, x_train2.shape, x_test2.shape, y_train.shape, y_test.shape, x_train3
+x_train1.shape, x_test1.shape, x_train2.shape, x_test2.shape, y_train.shape, y_test.shape
+x_train2
 
 ----------------------------------------------------------------------------------------
 # non-timebased split
@@ -73,65 +73,93 @@ x_train1.shape, x_test1.shape, x_train2.shape, x_test2.shape, y_train.shape, y_t
 # x_train1.shape, x_test1.shape, x_train2.shape, x_test2.shape, y_train.shape, y_test.shape
 ----------------------------------------------------------------------------------------
 
+# -------------------------------------------------------------------------------- NOTEBOOK-CELL: CODE
 # Clear Network
-from keras import backend as K 
+from keras import backend as K
 K.clear_session()
 
-embed_input1 = len(set(df.ID_F)) + 1
-embed_input2 = len(set(df.MONTH)) + 1
+embed_input1 = len(set(df.ADJ_EMPID)) + 1
 
 from keras import Input, layers
 from keras.models import Sequential, Model
 from keras import layers
+from keras import regularizers
 
 # define two sets of inputs
 inputA = Input(shape=(x_train1.shape[1],))
 inputB = Input(shape=(x_train2.shape[1],))
-inputC = Input(shape=(x_train3.shape[1],))
- 
-# the first branch operates on the first input
-x1 = layers.Embedding(embed_input1, 7)(inputA)
-x1 = layers.LSTM(128, dropout=0.5, recurrent_dropout=0.5, return_sequences=True)(x1)
-x1 = layers.LSTM(128, dropout=0.5, recurrent_dropout=0.5)(x1)
-x1 = Model(inputs=inputA, outputs=x1)
- 
-# the first branch operates on the first input
-x2 = layers.Embedding(embed_input2, 3)(inputB)
-x2 = layers.LSTM(128, dropout=0.5, recurrent_dropout=0.5, return_sequences=True)(x2)
-x2 = layers.LSTM(128, dropout=0.5, recurrent_dropout=0.5)(x2)
-x2 = Model(inputs=inputB, outputs=x2)
 
-# the second branch opreates on the second input
-y = layers.Dense(128, activation="relu")(inputC)
-y = layers.Dropout(0.5)(y)
-y = layers.Dense(128, activation="relu")(y)
-y = layers.Dropout(0.5)(y)
-y = Model(inputs=inputC, outputs=y)
- 
-# combine the output of the two branches
-combined = layers.concatenate([x1.output, x2.output, y.output], axis = -1)
- 
-# apply a FC layer and then a regression prediction on the
-# combined outputs
-z = layers.Dense(128, activation="relu")(combined)
-z = layers.Dropout(0.5)(z)
-z = layers.Dense(128, activation="relu")(z)
-z = layers.Dropout(0.5)(z)
-z = layers.Dense(1)(z)
- 
-# our model will accept the inputs of the two branches and
-# then output a single value
-model = Model(inputs=[x1.input, x2.input, y.input], outputs=z)
 
-model.compile(optimizer='rmsprop',
-              loss='mse',
-              metrics=['mae'])
-              
-history = model.fit([x_train1, x_train2, x_train3], y_train,
-                    epochs = 20,
-                    batch_size = 62,
-                    validation_data = ([x_test1, x_test2, x_test3], y_test))
+epo = np.array([50,100,200])
+batch = np.array([100,300, 600,1000])
+dp_out = np.array([0.2, 0.4, 0.6, 0.8])
+act =  np.array(['relu', 'tanh'])
+nl1 = np.array([1,5,10])
+nn1 = np.array([50,100,300,500,700])
 
+param = np.array(np.meshgrid([epo], [batch], [dp_out], [act], [nl1], [nn1])).T.reshape(-1,6)
+
+result = []
+
+for x1 in param:
+
+    epo = int(x1[0])
+    bat = int(x1[1])
+    dpo = float(x1[2])
+    acti = (x1[3])
+    nl = int(x1[4])//1
+    nn = int(x1[5])
+
+
+    # the first branch operates on the first input
+    x1 = layers.Embedding(embed_input1, 50)(inputA)
+    # x1 = layers.Flatten()(x1)
+    x1 = layers.LSTM(50, dropout=dpo, recurrent_dropout=dpo, return_sequences=True, kernel_regularizer=regularizers.l2(0.001))(x1)
+    x1 = layers.LSTM(50, dropout=dpo, recurrent_dropout=dpo, kernel_regularizer=regularizers.l2(0.001))(x1)
+    x1 = Model(inputs=inputA, outputs=x1)
+
+    # the second branch opreates on the second input
+    x2 = layers.Dense(100, activation=acti, kernel_regularizer=regularizers.l2(0.001))(inputB)
+    x2 = layers.Dropout(dpo)(x2)
+
+    for i in range(nl):
+        x2 = layers.Dense(nn, activation=acti, kernel_regularizer=regularizers.l2(0.001))(x2)
+        x2 = layers.Dropout(dpo)(x2)
+
+    x2 = Model(inputs=inputB, outputs=x2)
+
+
+    # combine the output of the two branches
+    combined = layers.concatenate([x1.output, x2.output], axis = -1)
+    # apply a FC layer and then a regression prediction on the
+
+    # combined outputs
+    z = layers.Dense(500, activation=acti, kernel_regularizer=regularizers.l2(0.001))(combined)
+    z = layers.Dropout(dpo)(z)
+
+    for i in range(nl):
+        z = layers.Dense(nn, activation=acti, kernel_regularizer=regularizers.l2(0.001))(z)
+        z = layers.Dropout(dpo)(z)
+
+    z = layers.Dense(1)(z)
+
+    # our model will accept the inputs of the two branches and
+    # then output a single value
+    model = Model(inputs=[x1.input, x2.input], outputs=z)
+
+    model.compile(optimizer='rmsprop',
+                  loss='mse',
+                  metrics=['mae'])
+
+    history = model.fit([x_train1, x_train2], y_train,
+                        epochs = epo,
+                        batch_size = bat,
+                        validation_data = ([x_test1, x_test2], y_test))
+
+    result.append(history.history['val_mean_absolute_error'])
+
+result1 = np.transpose(pd.DataFrame(result))
+# -------------------------------------------------------------------------------- NOTEBOOK-CELL: CODE
 
 import matplotlib.pyplot as plt
 
