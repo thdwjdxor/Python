@@ -178,4 +178,4 @@ plt.show()
 # -------------------------------------------------------------------------------- NOTEBOOK-CELL: CODE
 # Map Embedding
 embeddings = model.get_layer('embedding_1').get_weights()[0]
-{w:embeddings[idx] for w, idx in token_index.items()}.keys()
+{w:embeddings[idx] for w, idx in token_index.items()}
