@@ -14,7 +14,7 @@ train_set, test_set = split_train_test(housing, 0.2)
 
 
 
-# time based split
+# time based split -----------------------------------#
 
 np.random.seed(42)
 
@@ -34,5 +34,14 @@ x_test1 = np.array(df1[['ADJ_EMPID']].iloc[val_obs:])
 x_test2 = np.array(df1.iloc[val_obs:, 2:])
 y_test = np.array(df1[['SRC']].iloc[val_obs:])
 
-x_train1.shape, x_test1.shape, x_train2.shape, x_test2.shape, y_train.shape, y_test.shape
-x_train2
+
+# Stratified Sampling -----------------------------------#
+
+from sklearn.model_selection import StratifiedShuffleSplit
+
+split = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=42)
+for train_index, test_index in split.split(housing, housing["income_cat"]):
+  strat_train_set = housing.loc[train_index]
+  strat_test_set = housing.loc[test_index]
+  
+housing["income_cat"].value_counts() / len(housing)
