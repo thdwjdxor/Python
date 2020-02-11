@@ -1,0 +1,31 @@
+df.head()
+
+# table description
+df.info()
+
+# Summary Categorical varaible
+df['Banker_Role'].value_counts()
+
+# Summary Numerical varaible
+df.describe()
+
+# histogram
+import matplotlib.pyplot as plt
+df.hist(bins=50, figsize=(20,15))
+plt.show()
+
+# Plot
+housing.plot(kind="scatter", x="longitude", y="latitude", alpha=0.4,
+  s=housing["population"]/100, label="population", # Radius represents population
+  c="median_house_value", cmap=plt.get_cmap("jet"), colorbar=True, # color represents med_house_value
+)
+plt.legend()
+
+# Correlation values
+corr_matrix = housing.corr()
+
+# OR Correlcation Plots
+from pandas.tools.plotting import scatter_matrix
+
+attributes = ["median_house_value", "median_income", "total_rooms", "housing_median_age"]
+scatter_matrix(housing[attributes], figsize=(12, 8))  
