@@ -66,7 +66,14 @@ housing_prepared = full_pipeline.fit_transform(housing)
 
 
 # Split Train and Test Dataset -----------------------------------#
+# Option 1:
+X_train, X_test, y_train, y_test = X[:60000], X[60000:], y[:60000], y[60000:]
 
+import numpy as np
+shuffle_index = np.random.permutation(60000)
+X_train, y_train = X_train[shuffle_index], y_train[shuffle_index]
+
+# Option 2:
 np.random.seed(42)
 
 import numpy as np
