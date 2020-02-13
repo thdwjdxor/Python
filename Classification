@@ -1,4 +1,5 @@
-# Binary
+# Binary Classification --------------------------------------------------------#
+# SGD ------------------------------------------------------------------------#
 from sklearn.linear_model import SGDClassifier
 sgd_clf = SGDClassifier(random_state=42) #Random_state make is reproducible
 sgd_clf.fit(X_train, y_train_5)
@@ -70,7 +71,95 @@ def plot_roc_curve(fpr, tpr, label=None):
   plot_roc_curve(fpr, tpr)
 plt.show() #Best location is top-left corner
 
+# Area Under the ROC
+from sklearn.metrics import roc_auc_score
+roc_auc_score(y_train_5, y_scores)
+
 # Harmonic average of Precisoin and Recall
 from sklearn.metrics import f1_score
 f1_score(y_train_5, y_pred)
 
+
+# RandomFroest ------------------------------------------------------------------------#
+from sklearn.ensemble import RandomForestClassifier
+forest_clf = RandomForestClassifier(random_state=42)
+y_probas_forest = cross_val_predict(forest_clf, X_train, y_train_5, cv=3, method="predict_proba")
+
+y_scores_forest = y_probas_forest[:, 1] # score = proba of positive class
+fpr_forest, tpr_forest, thresholds_forest = roc_curve(y_train_5,y_scores_forest)
+
+plt.plot(fpr, tpr, "b:", label="SGD")
+plot_roc_curve(fpr_forest, tpr_forest, "Random Forest")
+plt.legend(loc="bottom right")
+plt.show()
+
+roc_auc_score(y_train_5, y_scores_forest)
+
+
+# Multiclass Classification --------------------------------------------------------#
+sgd_clf.fit(X_train, y_train) # y_train, not y_train_5
+sgd_clf.predict([some_digit])
+
+# Under the hood, Scikit-Learn actually trained 10 binary classifiers, got their decision scores
+some_digit_scores = sgd_clf.decision_function([some_digit])
+some_digit_scores
+np.argmax(some_digit_scores)
+
+sgd_clf.classes_ # Show classes
+cross_val_score(sgd_clf, X_train, y_train, cv=3, scoring="accuracy")
+
+# Using RandomForest: Predicts probablity of all class, not OvA or OvO
+from sklearn.preprocessing import StandardScaler
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train.astype(np.float64))
+cross_val_score(sgd_clf, X_train_scaled, y_train, cv=3, scoring="accuracy")
+
+# non-scaled RnadomForest
+forest_clf.fit(X_train, y_train)forest_clf.predict([some_digit])
+forest_clf.predict_proba([some_digit])
+
+# Validate
+y_train_pred = cross_val_predict(sgd_clf, X_train_scaled, y_train, cv=3)
+conf_mx = confusion_matrix(y_train, y_train_pred)
+conf_mx
+
+#plot confusion matrix
+# Remember that rows represent actual classes, while columns represent predicted classes. The columns for
+# classes 8 and 9 are quite bright, which tells you that many images get misclassified as
+# 8s or 9s. Similarly, the rows for classes 8 and 9 are also quite bright, telling you that 8s
+# and 9s are often confused with other digits.
+row_sums = conf_mx.sum(axis=1, keepdims=True)
+norm_conf_mx = conf_mx / row_sums
+np.fill_diagonal(norm_conf_mx, 0)
+plt.matshow(norm_conf_mx, cmap=plt.cm.gray)
+plt.show()
+
+
+# Multi-Label Classification  ------------------------------------------------------------------------#
+# For example, face-recognition classifier: recognizes several people on the same picture? 
+from sklearn.neighbors import KNeighborsClassifier
+y_train_large = (y_train >= 7)
+y_train_odd = (y_train % 2 == 1)
+y_multilabel = np.c_[y_train_large, y_train_odd]
+knn_clf = KNeighborsClassifier()
+knn_clf.fit(X_train, y_multilabel)
+
+knn_clf.predict([some_digit])
+
+# evalaute multi-label
+# Option 1: All labels are equally important. If Different weight, then use, average="weighted"
+y_train_knn_pred = cross_val_predict(knn_clf, X_train, y_train, cv=3)
+f1_score(y_train, y_train_knn_pred, average="macro")
+
+
+# Multi-Output Classification  ------------------------------------------------------------------------#
+noise = rnd.randint(0, 100, (len(X_train), 784))
+noise = rnd.randint(0, 100, (len(X_test), 784))
+X_train_mod = X_train + noise
+X_test_mod = X_test + noise
+y_train_mod = X_train
+y_test_mod = X_test
+
+knn_clf.fit(X_train_mod, y_train_mod)
+clean_digit = knn_clf.predict([X_test_mod[some_index]])
+plot_digit(clean_digit)
