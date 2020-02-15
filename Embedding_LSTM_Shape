@@ -1,0 +1,55 @@
+# EMBEDDING Layer Only -------------------------------------------#
+
+# input_array = np.random.randint(5, size=(1, 5))
+input_array = np.array([1,2,3,0,1,4,3,5]).reshape(2,4)
+
+# Count the unique number of teams
+n_teams = unique(input_array).shape[0]
+print(n_teams)
+
+model = Sequential()
+model.add(Embedding(n_teams, 2, input_length=4))
+
+model.compile('rmsprop', 'mse')
+
+wgt = model.layers[0].get_weights()[0]
+
+print(input_array)
+print(model.predict(input_array).shape)
+model.predict(input_array)
+
+
+# EMBEDDING + Flatten Layer -------------------------------------------#
+
+# input_array = np.random.randint(5, size=(1, 5))
+input_array = np.array([1,2,3,0,1,4,3,5]).reshape(2,4)
+
+# Count the unique number of teams
+n_teams = unique(input_array).shape[0]
+
+model = Sequential()
+model.add(Embedding(n_teams, 2, input_length=4, weights=[wgt],trainable=False))
+model.add(Flatten())
+model.compile('rmsprop', 'mse')
+
+print(input_array)
+print(model.predict(input_array).shape)
+model.predict(input_array
+
+
+# EMBEDDING + LSTM Layer -------------------------------------------#
+
+# input_array = np.random.randint(5, size=(1, 5))
+input_array = np.array([1,2,3,0,1,4,3,5]).reshape(2,4)
+
+# Count the unique number of teams
+n_teams = unique(input_array).shape[0]
+
+model = Sequential()
+model.add(Embedding(n_teams, 2, input_length=4, weights=[wgt],trainable=False))
+model.add(LSTM(20))
+model.compile('rmsprop', 'mse')
+
+print(input_array)
+print(model.predict(input_array).shape)
+model.predict(input_array)
