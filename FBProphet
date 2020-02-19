@@ -145,3 +145,35 @@ train_MAE =  "{:.2f}".format(np.mean(abs(forecast_holi[:-prediction_size]['y'] -
 test_MAE = "{:.2f}".format(np.mean(abs(forecast_holi[-prediction_size:]['y'] - forecast_holi[-prediction_size:]['yhat'])))
 print("Training MAE: {}".format(train_MAE))
 print("Test MAE: {} ".format(test_MAE))
+
+# Add Regressor  ---------------------------------------------------------#
+df['x1'] =  np.where(df['y']>19, 1, 0)
+
+prediction_size = 31 
+train_df = df[:-prediction_size]
+train_df.tail(n=3)
+train_df.head
+
+%%time
+m = Prophet(yearly_seasonality=True, weekly_seasonality=True, daily_seasonality=True)
+m.add_regressor('x1')
+m.fit(train_df[['ds','y','x1']]);
+
+# Create Dataframe with date, where same starting date as train data PLUS Predicion_Size Date after Train Data Date
+future = m.make_future_dataframe(periods=prediction_size) 
+future
+
+# Input of Model is ONLY Date
+%%time
+forecast = m.predict(df)
+forecast.tail(n=5)
+
+m.plot(forecast);
+m.plot_components(forecast);
+
+forecast['y'] = df['y'].copy()
+
+train_MAE =  "{:.2f}".format(np.mean(abs(forecast[:-prediction_size]['y'] - forecast[:-prediction_size]['yhat'])))
+test_MAE = "{:.2f}".format(np.mean(abs(forecast[-prediction_size:]['y'] - forecast[-prediction_size:]['yhat'])))
+print("Training MAE: {}".format(train_MAE))
+print("Test MAE: {} ".format(test_MAE))
