@@ -134,3 +134,16 @@ final_predictions = final_model.predict(X_test_prepared)
 final_mse = mean_squared_error(y_test, final_predictions)
 final_rmse = np.sqrt(final_mse) # => evaluates to 48,209.6
 sorted(zip(feature_importances, attributes), reverse=True)
+
+
+# Lasso Model  -----------------------------------------------------------#
+from sklearn.linear_model import Lasso
+lasso_reg = Lasso(alpha=0.1)
+lasso_reg.fit(X, y)
+lasso_reg.predict([[1.5]])
+
+# Elastic: Lasso + Reidge Model  -----------------------------------------------------------#
+from sklearn.linear_model import ElasticNet
+elastic_net = ElasticNet(alpha=0.1, l1_ratio=0.5)
+elastic_net.fit(X, y)
+elastic_net.predict([[1.5]])
