@@ -87,6 +87,25 @@ def split_train_test(data, test_ratio):
 train_set, test_set = split_train_test(housing, 0.2)
 
 
+# Corelation Feature Selection  -----------------------------------#
+def corr_feature_selection(df, corr_method = 'spearman', thresh = 0.9):
+
+    corr_num = 2
+    
+    while corr_num > 1:
+        
+        corrmat = df.corr(method = corr_method)
+        corr_df = corrmat[abs(corrmat) > thresh].count().sort_values(ascending = False).reset_index()
+        corr_df.columns = ['variable', 'corr_var_num']
+        corr_num = corr_df['corr_var_num'][0]
+        
+        if corr_num > 1:
+            drop_col = corr_df['variable'][0]
+            df = df.drop(columns=[drop_col])
+        else:
+            return df
+            
+            
 # time based split -----------------------------------#
 
 np.random.seed(42)
