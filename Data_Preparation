@@ -105,6 +105,29 @@ def corr_feature_selection(df, corr_method = 'spearman', thresh = 0.9):
         else:
             return df
             
+
+# VIF Feature Selection  -----------------------------------#
+from statsmodels.stats.outliers_influence import variance_inflation_factor
+from statsmodels.tools.tools import add_constant
+
+def vif_feature_selection(df, thresh = 5):
+    
+    vif_value = 100
+    while vif_value > thresh:
+        
+        df_num = df._get_numeric_data()
+        numeric_col = df_num.columns
+        X = add_constant(df_num)
+        df_vif = pd.DataFrame([variance_inflation_factor(X.values, i) for i in range(X.shape[1])], 
+                  index=X.columns).reset_index()
+        vif_value = df_vif.iloc[1,1]
+        
+        if vif_value > thresh:
+            drop_col = df_vif.iloc[1,0]
+            df = df.drop(columns=[drop_col])
+        else:
+            return df
+            
             
 # time based split -----------------------------------#
 
