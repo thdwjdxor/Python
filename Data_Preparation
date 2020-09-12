@@ -150,7 +150,7 @@ def vif_feature_selection(df, thresh = 5):
 # XGB Feature Selection  -----------------------------------#
 def xgb_feature_selection(df, y, dependent_class, thresh = 5):
     """
-        Stepwise varaible selection using xgb
+        Stepwise varaible selection using xgb w/ permutation importance
 
         Parameters:
         df (dataframe): dataframe of independent variables
@@ -162,13 +162,13 @@ def xgb_feature_selection(df, y, dependent_class, thresh = 5):
         df (dataframe): Return dataframe with important varaibles
     """
     from sklearn.inspection import permutation_importance
-    from xgboost import XGBClassifier
-    from xgboost import XGBRegressor
     
     imp_num = len(df.columns)
     while imp_num > thresh:
 
         if dependent_class == 'reg':
+            from xgboost import XGBRegressor
+            
             model = XGBRegressor().fit(df, y)
             r = permutation_importance(model, df, y, random_state = 0)
             min_imp = r.importances_mean.argmin()
@@ -178,6 +178,8 @@ def xgb_feature_selection(df, y, dependent_class, thresh = 5):
             imp_num = len(df.columns)
         
         if dependent_class == 'cl':
+            from xgboost import XGBClassifier
+            
             model = XGBClassifier().fit(df, y)
             r = permutation_importance(model, df, y, scoring = 'accuracy', random_state = 0)
             min_imp = r.importances_mean.argsort().argmin()
