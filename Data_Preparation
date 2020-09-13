@@ -148,49 +148,29 @@ def vif_feature_selection(df, thresh = 5):
             
 
 # XGB Feature Selection  -----------------------------------#
-def xgb_feature_selection(df, y, dependent_class, thresh = 5):
-    """
-        Stepwise varaible selection using xgb w/ permutation importance
+1) Permutation_Importance on full-dataset to idenfity variables: simplest
 
-        Parameters:
-        df (dataframe): dataframe of independent variables
-        y (dataframe): dataframe of dependent variables
-        dependent_class (str): 'reg', 'cl'
-        thresh (int): final number of variables
+from sklearn.inspection import permutation_importance
+result = permutation_importance(XGBRegressor().fit(df,y), df, y, random_state = 0, scoring='neg_mean_squared_error')
+sorted_idx = result.importances_mean.argsort()
 
-        Returns:
-        df (dataframe): Return dataframe with important varaibles
-    """
-    from sklearn.inspection import permutation_importance
+fig, ax = plt.subplots()
+ax.boxplot(result.importances[sorted_idx].T,
+           vert=False, labels=df.columns[sorted_idx])
+ax.set_title("Permutation Importances (train set)")
+fig.tight_layout()
+plt.show()
+
+2) Permutation_Importance cv to idenfity variables: simplest
+import eli5
+from eli5.sklearn import PermutationImportance
     
-    imp_num = len(df.columns)
-    while imp_num > thresh:
+svc = XGBRegressor(random_state = 0)
+perm = PermutationImportance(svc, cv = 5).fit(np.matrix(df), np.matrix(y))
+eli5.show_weights(perm)
 
-        if dependent_class == 'reg':
-            from xgboost import XGBRegressor
-            
-            model = XGBRegressor().fit(df, y)
-            r = permutation_importance(model, df, y, random_state = 0)
-            min_imp = r.importances_mean.argmin()
-            drop_col = df.columns[min_imp]
-            df = df.drop(columns=[drop_col])
-
-            imp_num = len(df.columns)
-        
-        if dependent_class == 'cl':
-            from xgboost import XGBClassifier
-            
-            model = XGBClassifier().fit(df, y)
-            r = permutation_importance(model, df, y, scoring = 'accuracy', random_state = 0)
-            min_imp = r.importances_mean.argsort().argmin()
-            drop_col = df.columns[min_imp]
-            df = df.drop(columns=[drop_col])
-
-            imp_num = len(df.columns)
-            
-    return df
-
-def cross_val_rmse(model, df, y, cv = 5, shuf = False, rand_state = 1):
+3) Permutation_Importance cv to calculate model accuracy(RMSE) per n_features: complex
+def sup_feature_selection(model_choice, df, y, thresh = 5, cv = 5, shuf = False, rand_state = None):
     """
         Calculate rmse of each cv 
 
@@ -198,56 +178,98 @@ def cross_val_rmse(model, df, y, cv = 5, shuf = False, rand_state = 1):
         model (model): e.i. RandomForestRegressor(), XGBRegressor()
         df (dataframe): dataframe of independent variables
         y (dataframe): dataframe of dependent variables
-        cv (int): # of CV
+        cv (int): # of CV to calculate average RMSE, and average Permuatation Importance per varaible
         shuf (boolean) = shuffle observation
-        rand_state (int) = 1 if fix shuffling observation for cv; 
-                           large number(1000) if shuffling observtion for each cv run 
+        rand_state (int) = any integer
 
         Returns:
         rmse_list (list): list of rmse values from cv
     """
     # Import KFold
+    from sklearn.inspection import permutation_importance
     from sklearn.model_selection import KFold
     from sklearn.datasets import make_classification
     from sklearn.metrics import mean_squared_error
+    import random
 
-    rmse_list = list()
-    X = np.matrix(df)
-    y = np.matrix(y)
+    
+    rmse_list1 = list()
+    n_features = list(reversed(range(thresh, len(df.columns) + 1)))
     
     if shuf == False:
-        cv_outer = KFold(n_splits = cv, shuffle=shuf)
-
-        for train_ix, test_ix in cv_outer.split(X):
-            X_train, X_test = X[train_ix, :], X[test_ix, :]
-            y_train, y_test = y[train_ix], y[test_ix]
-
-            model.fit(X_train, y_train)
-            prediction = model.predict(X_test)
-            rmse_list.append(np.sqrt(mean_squared_error(y_test, prediction)))
-        return rmse_list
-            
-    if shuf == True:
-        cv_outer = KFold(n_splits = cv, shuffle=shuf, random_state = random.randrange(rand_state))
-
-        for train_ix, test_ix in cv_outer.split(X):
-            X_train, X_test = X[train_ix, :], X[test_ix, :]
-            y_train, y_test = y[train_ix], y[test_ix]
-
-            model.fit(X_train, y_train)
-            prediction = model.predict(X_test)
-            rmse_list.append(np.sqrt(mean_squared_error(y_test, prediction)))
-        return rmse_list
         
-test = list() 
+        imp_num = len(df.columns)
+        while imp_num >= thresh:
+            
+            X = np.matrix(df)
+            y = np.matrix(y)
+            perm = np.array(range(df.shape[1]))
+            rmse_list = list()
+            print(df.columns)
 
-for i in range(1, len(df.columns)+1):
-    print(i)
-    train = xgb_feature_selection(df,y, 'reg', thresh = i)
-    test.append(np.mean(cross_val_rmse(RandomForestRegressor(random_state = 0), train, y, shuf = True)))
+            cv_outer = KFold(n_splits = cv)
+
+            for train_ix, test_ix in cv_outer.split(X):
+                X_train, X_test = X[train_ix, :], X[test_ix, :]
+                y_train, y_test = y[train_ix], y[test_ix]
+
+                model = model_choice.fit(X_train, y_train)
+                prediction = model.predict(X_test)
+                rmse_list.append(np.sqrt(mean_squared_error(y_test, prediction)))
+                
+            model = model_choice.fit(df,y)                
+            r = permutation_importance(model, df, y)            
+            min_imp = r.importances_mean.argmin()
+            drop_col = df.columns[min_imp]
+            df = df.drop(columns=[drop_col])
+            
+            rmse_list1.append(np.mean(rmse_list))
+            imp_num = len(df.columns)
+            perm = np.array(range(df.shape[1]))
+            rmse_list = list()
+
+        df_summary = pd.DataFrame(rmse_list1, n_features).reset_index()
+        df_summary.columns = ['n_features', 'RMSE']
+        return df_summary
+        
+    if shuf == True:            
+
+        imp_num = len(df.columns)
+        while imp_num >= thresh:
+            
+            X = np.matrix(df)
+            y = np.matrix(y)
+            perm = np.array(range(df.shape[1]))
+            rmse_list = list()
+            print(df.columns)
+
+            cv_outer = KFold(n_splits = cv, shuffle = True, random_state = rand_state)  
+
+            for train_ix, test_ix in cv_outer.split(X):
+                X_train, X_test = X[train_ix, :], X[test_ix, :]
+                y_train, y_test = y[train_ix], y[test_ix]
+
+                model = model_choice.fit(X_train, y_train)
+                prediction = model.predict(X_test)
+                rmse_list.append(np.sqrt(mean_squared_error(y_test, prediction)))
+                
+            model = model_choice.fit(df,y)                
+            r = permutation_importance(model, df, y)            
+            min_imp = r.importances_mean.argmin()
+            drop_col = df.columns[min_imp]
+            df = df.drop(columns=[drop_col])
+            
+            rmse_list1.append(np.mean(rmse_list))
+            imp_num = len(df.columns)
+            perm = np.array(range(df.shape[1]))
+            rmse_list = list()
+
+        df_summary = pd.DataFrame(rmse_list1, n_features).reset_index()
+        df_summary.columns = ['n_features', 'RMSE']
+        return df_summary
     
-best_n_features = np.array(test).argmin() + 1
-xgb_feature_selection(df,y, 'reg', best_n_features).columns
+from xgboost import XGBRegressor
+sup_feature_selection(XGBRegressor(), df,y, shuf = False, cv = 5)
 
 
 # time based split -----------------------------------#
