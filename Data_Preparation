@@ -149,11 +149,12 @@ def vif_feature_selection(df, thresh = 5):
 
 # XGB Feature Selection  -----------------------------------#
 1) Permutation_Importance on full-dataset to idenfity variables: simplest
-
 from sklearn.inspection import permutation_importance
 result = permutation_importance(XGBRegressor().fit(df,y), df, y, random_state = 0, scoring='neg_mean_squared_error')
-sorted_idx = result.importances_mean.argsort()
+for i in range(1,len(result.importances_mean)):
+    print(result.importances_mean[i])
 
+sorted_idx = result.importances_mean.argsort()
 fig, ax = plt.subplots()
 ax.boxplot(result.importances[sorted_idx].T,
            vert=False, labels=df.columns[sorted_idx])
