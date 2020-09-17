@@ -138,24 +138,22 @@ eli5.show_weights(perm)
 # 3) Shapley
 import shap  # package used to calculate Shap values
 
+# Create object that can calculate shap values
+explainer = shap.TreeExplainer(rf2)
+
+# Shapley Value Plot for one Data point
 row_to_show = 5 # Shapley Value of specific one observation
 data_for_prediction = X_test.iloc[row_to_show]
 data_for_prediction_array = data_for_prediction.values.reshape(1, -1)
 
-# Create object that can calculate shap values
-explainer = shap.TreeExplainer(rf2)
-
-# Calculate Shap values
 shap_values = explainer.shap_values(data_for_prediction)
 
 shap.initjs()
 shap.force_plot(explainer.expected_value, shap_values, data_for_prediction)
 
-# Calculate shap_values for all of val_X rather than a single row, to have more data for plot.
+# Shapley Value Plot for all observation
 shap_values = explainer.shap_values(X_test)
-
-# Make plot. Index of [1] is explained in text below.
 shap.summary_plot(shap_values, X_test) # (, max_display = X_test.shape[1])
 
-# make plot.
+# Shapley Value Plot for all observation: bivariate analysis
 shap.dependence_plot('Transactions (Txn)', shap_values, X_test, interaction_index="Cons Households (HH)")
