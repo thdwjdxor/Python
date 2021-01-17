@@ -1,0 +1,6 @@
+h(t|x) = h0(t) * exp(b1 * x1)
+- Estimate H0t and exp(b1 * x1) separately
+1. b1 maximize partial likelihood function = f(x, y[0 or 1]) = PRODUCT(bx - f(y), for all unique(T) w/ death > 0)
+ - page 126 https://www4.stat.ncsu.edu/~dzhang2/st745/chap6.pdf
+ - Breslow’s Approximation to the Log Likelihood: https://ncss-wpengine.netdna-ssl.com/wp-content/themes/ncss/pdf/Procedures/NCSS/Cox_Regression.pdf
+2. Given Xs = 0, calculate Hazard Rate 
